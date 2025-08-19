@@ -8,7 +8,7 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// State
+// Global state
 let state = {
   mode: 'auto', // 'auto' or 'manual'
   features: {
@@ -17,13 +17,10 @@ let state = {
   }
 };
 
-// Store connected users
 let users = new Map();
 
-// Serve state for index.html
-app.get('/state', (req, res) => {
-  res.json(state);
-});
+// Serve state endpoint (optional)
+app.get('/state', (req, res) => res.json(state));
 
 io.on('connection', (socket) => {
   console.log('connected:', socket.id);
@@ -31,11 +28,10 @@ io.on('connection', (socket) => {
 
   // User sends message
   socket.on('user message', (msg) => {
-    // Broadcast to admin dashboard
+    // Broadcast to admin panel
     io.to('admins').emit('user message', { id: socket.id, msg });
 
     if (state.mode === 'auto') {
-      // simple AI: reverse text
       const reply = ">>> " + msg.split("").reverse().join("");
       socket.emit('ai message', reply);
     }
@@ -54,8 +50,16 @@ io.on('connection', (socket) => {
   // Admin registers
   socket.on('register admin', () => {
     socket.join('admins');
-    // Send connected users
+    // Send current users
     socket.emit('connected users', Array.from(users.keys()));
+    // Send current state
+    socket.emit('state update', state);
+  });
+
+  // Admin updates state
+  socket.on('update state', (newState) => {
+    state = { ...state, ...newState };
+    io.emit('state update', state); // send to users and admins
   });
 
   socket.on('disconnect', () => {
