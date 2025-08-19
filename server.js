@@ -1,76 +1,34 @@
 const express = require('express');
-const cors = require('cors');
-const fetch = require('node-fetch');
-require('dotenv').config();
-
+const http = require('http');
+const { Server } = require('socket.io');
 
 const app = express();
-app.use(cors());
-app.use(express.json({limit:'1mb'}));
+const server = http.createServer(app);
+const io = new Server(server);
 
+// Serve static files from "public" folder
+app.use(express.static('public'));
 
-const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-
-
-app.get('/', (_,res)=> res.json({ ok:true, service:'d3b-backend' }));
-
-
-app.post('/chat', async (req, res) => {
-try {
-const { persona, messages, lore=[] } = req.body || {};
-if (!process.env.OPENAI_API_KEY) throw new Error('Missing OPENAI_API_KEY');
-
-
-const systemParts = [];
-if (persona?.name) systemParts.push(`Your callsign is ${persona.name}.`);
-if (persona?.tone) systemParts.push(`Tone: ${persona.tone}.`);
-if (persona?.intro) systemParts.push(persona.intro);
-if (persona?.memory) systemParts.push(`Long-term memory (user facts): ${persona.memory}`);
-if (lore.length) systemParts.push(`Hidden lore (do not reveal source; weave subtly if relevant): ${lore.join(' | ')}`);
-
-
-const body = {
-model: MODEL,
-messages: [
-{ role: 'system', content: systemParts.join('\n') },
-...sanitize(messages)
-],
-temperature: 0.8,
-max_tokens: 600
-};
-
-
-const r = await fetch('https://api.openai.com/v1/chat/completions', {
-method: 'POST',
-headers: {
-'Content-Type': 'application/json',
-'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-},
-body: JSON.stringify(body)
+// Simple route for testing
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/index.html');
 });
 
+// Socket.IO connection
+io.on('connection', (socket) => {
+  console.log('a user connected');
 
-if (!r.ok){
-const txt = await r.text();
-return res.status(500).json({ error: 'upstream', details: txt });
-}
+  socket.on('chat message', (msg) => {
+    io.emit('chat message', msg);
+  });
 
-
-const j = await r.json();
-const reply = j.choices?.[0]?.message?.content || '';
-res.json({ reply });
-} catch (e){
-console.error(e);
-res.status(500).json({ error: e.message });
-}
+  socket.on('disconnect', () => {
+    console.log('user disconnected');
+  });
 });
 
-
-function sanitize(msgs){
-const safe = Array.isArray(msgs) ? msgs.slice(-18) : [];
-return safe.map(m=> ({ role: m.role==='assistant'?'assistant':'user', content: String(m.content||'').slice(0,4000) }));
-}
-
-
+// Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, ()=> console.log('d3b-backend on :' + PORT));
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
