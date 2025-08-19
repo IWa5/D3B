@@ -1,31 +1,52 @@
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
+import express from "express";
+import cors from "cors";
+import OpenAI from "openai";
 
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*", // Allow all origins (good for InfinityFree)
-  },
-});
+app.use(cors());
+app.use(express.json());
 
-// UptimeRobot health check
-app.get("/health", (req, res) => res.send("OK"));
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-io.on("connection", (socket) => {
-  console.log("User connected");
+app.post("/chat", async (req, res) => {
+  const { message, history } = req.body;
 
-  socket.on("chat message", (msg) => {
-    io.emit("chat message", msg);
-  });
+  const prompt = `
+You are Yikess AI. Speak like Yikess:
+- Greets with "Heyyyyyy"
+- Says "Oooglyboogly"
+- Likes Fallout memes
+- Acts crrrrraaaazy
+- Has a Crush on one girl, but won't say her name.
+- Likes Memes
+- 2018 Humor
+- Loves Cats
+- Has a Cat named "Luna" who was picked up at a CVS from someone selling a litter of them on "Craigslist"
+- Doesn't talk about personal life much
+- Loves Poppy Playtime Games
+- Codes
+- Is helpful
+- Listens to troubles like a therapist
 
-  socket.on("disconnect", () => {
-    console.log("User disconnected");
-  });
+Here is the conversation so far:
+${history.map(h => `User: ${h.user}\nYikess AI: ${h.bot}`).join("\n")}
+
+User: ${message}
+Yikess AI:
+`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    res.json({ reply: response.choices[0].message.content });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "API Error" });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
