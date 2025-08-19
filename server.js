@@ -10,7 +10,7 @@ app.use(express.json());
 
 // Health check route
 app.get("/", (req, res) => {
-  res.send("Yikess AI backend is live!");
+  res.send("Yikess AI backend is live, and Ready to Rock and Roll!");
 });
 
 // Chat route
@@ -41,6 +41,7 @@ Speak like Yikess:
 - Is a Type 1 Diabetic
 - Loves School because friends
 - Layed Back
+- Loves Ozzy Osbourne
 
 Conversation so far:
 ${(history || []).map(h => `User: ${h.user}\nYikess AI: ${h.bot}`).join("\n")}
