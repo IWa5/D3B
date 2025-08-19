@@ -1,18 +1,13 @@
 {
   "name": "d3b",
   "version": "1.0.0",
-  "description": "D3B Node.js app",
+  "description": "D3B Chat backend",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
-  "author": "Yikess",
-  "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "^4.7.2"
-  },
-  "engines": {
-    "node": "22.x"
   }
 }
