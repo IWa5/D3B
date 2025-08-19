@@ -8,48 +8,51 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// Store user sockets for admin
-let users = new Map();
+// State for AI
+let state = {
+  mode: 'auto', // 'auto' or 'manual'
+  features: {
+    tts: false,
+    glitch: true
+  }
+};
 
-// Simple AI response function
-function aiResponse(message) {
-  // Example AI logic: just echoes with "D3B says:"
-  return `D3B: I heard you say "${message}"`;
-}
+// Admin sockets
+let admins = new Set();
 
+app.get('/state', (req, res) => {
+  res.json(state);
+});
+
+// Socket.IO for admin overrides
 io.on('connection', (socket) => {
-  console.log('a user connected:', socket.id);
-  users.set(socket.id, socket);
-
-  socket.on('user message', (msg) => {
-    // Send user message to admin dashboard
-    io.to('admins').emit('user message', { id: socket.id, msg });
-
-    // AI automatic response
-    const reply = aiResponse(msg);
-    socket.emit('ai message', reply);
-  });
-
-  socket.on('admin message', ({ targetId, msg }) => {
-    if (targetId === 'all') {
-      // Broadcast to all users
-      users.forEach((s) => s.emit('ai message', `[ADMIN] ${msg}`));
-    } else {
-      const target = users.get(targetId);
-      if (target) target.emit('ai message', `[ADMIN] ${msg}`);
-    }
-  });
+  console.log('User connected:', socket.id);
 
   socket.on('register admin', () => {
-    socket.join('admins');
-    // Send current connected users
-    socket.emit('connected users', Array.from(users.keys()));
+    admins.add(socket.id);
+    socket.emit('state', state);
+  });
+
+  socket.on('update state', (newState) => {
+    state = { ...state, ...newState };
+    // Broadcast new state to all clients
+    io.emit('state update', state);
   });
 
   socket.on('disconnect', () => {
-    console.log('user disconnected:', socket.id);
-    users.delete(socket.id);
-    io.to('admins').emit('user disconnected', socket.id);
+    admins.delete(socket.id);
+    console.log('User disconnected:', socket.id);
+  });
+});
+
+// Optional: AI response endpoint for auto mode
+io.on('connection', (socket) => {
+  socket.on('user message', (msg) => {
+    if (state.mode === 'auto') {
+      // simple AI: reverse message
+      const reply = ">>> " + msg.split("").reverse().join("");
+      socket.emit('ai message', reply);
+    }
   });
 });
 
