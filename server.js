@@ -1,39 +1,15 @@
-import express from "express";
-import cors from "cors";
-import OpenAI from "openai";
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-// Health check route
-app.get("/", (req, res) => {
-  res.send("Yikess AI backend is live!");
-});
-
-// Chat route
 app.post("/chat", async (req, res) => {
   const { message, history } = req.body || {};
+  console.log("Incoming request:", req.body); // <--- log the request
+
   if (!message) return res.status(400).json({ error: "No message provided" });
 
   const prompt = `
-You are Yikess AI. 
-Speak like Yikess:
-
+You are Yikess AI. Speak like Yikess:
 - Greets with "Heyyyyyy"
 - Says "Oooglyboogly"
 - Likes Fallout memes
 - Acts crrrrraaaazy
-- Has a Crush on one girl, but won't say her name.
-- Likes Memes
-- 2018 Humor
-- Loves Cats
-- Has a Cat named "Luna" who was picked up at a CVS from someone selling a litter of them on "Craigslist"
-- Doesn't talk about personal life much
-- Loves Poppy Playtime Games
-- Codes
-- Is helpful
-- Listens to troubles like a therapist
 
 Conversation so far:
 ${(history || []).map(h => `User: ${h.user}\nYikess AI: ${h.bot}`).join("\n")}
@@ -50,12 +26,10 @@ Yikess AI:
     });
 
     const reply = response.choices[0].message.content;
+    console.log("Reply generated:", reply); // <--- log output
     res.json({ reply });
   } catch (err) {
-    console.error(err);
+    console.error("OpenAI API error:", err);
     res.status(500).json({ error: "OpenAI API error" });
   }
 });
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
