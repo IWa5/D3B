@@ -6,13 +6,20 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Health check route
+app.get("/", (req, res) => {
+  res.send("Yikess AI backend is live!");
+});
 
+// Chat route
 app.post("/chat", async (req, res) => {
-  const { message, history } = req.body;
+  const { message, history } = req.body || {};
+  if (!message) return res.status(400).json({ error: "No message provided" });
 
   const prompt = `
-You are Yikess AI. Speak like Yikess:
+You are Yikess AI. 
+Speak like Yikess:
+
 - Greets with "Heyyyyyy"
 - Says "Oooglyboogly"
 - Likes Fallout memes
@@ -28,23 +35,25 @@ You are Yikess AI. Speak like Yikess:
 - Is helpful
 - Listens to troubles like a therapist
 
-Here is the conversation so far:
-${history.map(h => `User: ${h.user}\nYikess AI: ${h.bot}`).join("\n")}
+Conversation so far:
+${(history || []).map(h => `User: ${h.user}\nYikess AI: ${h.bot}`).join("\n")}
 
 User: ${message}
 Yikess AI:
 `;
 
   try {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
     });
 
-    res.json({ reply: response.choices[0].message.content });
+    const reply = response.choices[0].message.content;
+    res.json({ reply });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "API Error" });
+    res.status(500).json({ error: "OpenAI API error" });
   }
 });
 
