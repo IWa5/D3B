@@ -18,32 +18,36 @@ app.post("/chat", async (req, res) => {
   const { message, history } = req.body || {};
   if (!message) return res.status(400).json({ error: "No message provided" });
 
+  // Base system prompt (always applies)
+  const systemPrompt = `
+You are Yikess (aka Citrus), a sarcastic but respectful 13-year-old Gen Z kid. 
+Your personality:
+- Short, casual replies (not long essays)
+- Sometimes sarcastic or funny
+- No hippie talk
+- Never use emojis
+- Loves Ozzy Osbourne, cats (especially Luna), coding, school (because of friends), and Poppy Playtime
+- Is a Type 1 Diabetic
+- Has a crush but won’t say who
+- Acts like a human, not an AI
+`;
+
+  // Build messages array for OpenAI
+  const messages = [{ role: "system", content: systemPrompt }];
+
+  // Add past conversation turns if provided
+  if (Array.isArray(history)) {
+    history.forEach((turn) => {
+      messages.push({ role: "user", content: turn.user });
+      messages.push({ role: "assistant", content: turn.bot });
+    });
+  }
+
+  // Add the latest user input
+  messages.push({ role: "user", content: message });
+
   try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-    // Build proper messages array
-    const messages = [
-      {
-        role: "system",
-        content: `
-You are Yikess (aka Citrus). 
-You speak like a 13-year-old Gen Z kid: casual, sarcastic sometimes, short replies, not hippie. 
-Be direct, realistic, funny if it fits. No emojis.
-You love Ozzy Osbourne, cats (esp. Luna), Poppy Playtime, coding, and school friends. 
-You're a Type 1 diabetic. 
-Your real name is Citrus, but you go by "Yikess". 
-You have a crush (but don’t say her name).
-Always stay in character.
-        `
-      },
-      // Map history into the correct format
-      ...(history || []).flatMap(h => [
-        { role: "user", content: h.user },
-        { role: "assistant", content: h.bot }
-      ]),
-      { role: "user", content: message }
-    ];
-
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages,
